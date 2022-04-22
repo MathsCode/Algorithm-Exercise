@@ -2,7 +2,7 @@
  * @Description: 百练OJ 3750 魔兽世界
  * @Author: Xu Jiaming
  * @Date: 2022-04-21 11:28:59
- * @LastEditTime: 2022-04-21 20:53:52
+ * @LastEditTime: 2022-04-22 10:05:10
  * @LastEditors:  
  * @FilePath: BLOJ3750.cpp
  */
@@ -15,6 +15,7 @@ struct headquarters
     int hp = 0;
     int tot_soldier = 0;
     int T_serial = 5;
+    int oppo_soldier = 0;
 }red,blue;
 
 struct  soldier
@@ -23,16 +24,18 @@ struct  soldier
     int id;
     int loc = 0;
     char name;
+    int status; // 0:live 1:dead;
 }s_class[5],red_s[100],blue_s[100];
 
 struct City
 {
     int id;
     int hp = 0;
-    int flag = 0; // -1 : red 1:blue
+    char flag = 'n'; // r : red 1bblue,n:null
     int s_tot = 0;
     int id_red = 0;
     int id_blue = 0;
+    char last_win = 'n'; // r:red,b:blue,n:null
 }city[25];
 
 char s_name[5]={'d','n','i','l','w'};
@@ -58,7 +61,12 @@ int main()
         {
             scanf("%d",&s_class[i].force);
         }
-        while(hour*60+minu < t)
+        bool pd = true;
+        for(int i = 1; i <= n; i++)
+        {
+            city[i].id = i;
+        }
+        while(hour*60+minu < t and pd)
         {
             minu = 0;
             // 武士降生
@@ -70,6 +78,7 @@ int main()
                 red_s[red.tot_soldier].id = red.tot_soldier;
                 red.hp -= s_class[red.tot_soldier % red.T_serial].hp;
                 red_s[red.tot_soldier].name = s_name[red.tot_soldier % red.T_serial];
+                red_s[red.tot_soldier].status = 0;
             }
             if(blue.hp >= s_class[blue.tot_soldier % blue.T_serial].hp)
             {
@@ -79,14 +88,124 @@ int main()
                 blue_s[blue.tot_soldier].id = blue.tot_soldier;
                 blue_s[blue.tot_soldier].name = s_name[blue.tot_soldier % red.T_serial];
                 blue.hp -= s_class[blue.tot_soldier % red.T_serial].hp;
+                blue_s[blue.tot_soldier].status = 0;
             }
 
             //所有武士前进
             minu += 10;
-            for(int i = 1; i <= red.tot_soldier; i++) red_s[i].loc++;
-            for(int i = 1; i <= blue.tot_soldier; i++) blue_s[i].loc++;
+            for(int i = 1; i <= red.tot_soldier&&red_s[i].status == 0; i++)
+            {
+                city[red_s[i].loc].s_tot--;
+                city[red_s[i].loc].id_red = 0;
+                red_s[i].loc++;
+                if(red_s[i].loc <= n)
+                {
+                    city[red_s[i].loc].s_tot++;
+                    city[red_s[i].loc].id_red = red_s[i].id;
+                }
+                if(red_s[i].loc == n+1)
+                {
+                    blue.oppo_soldier++;
+                    if(blue.oppo_soldier == 2)
+                    {
+                        pd = false;
+                    }
+                }
+            }
+            for(int i = 1; i <= blue.tot_soldier&&blue_s[i].status == 0; i++) 
+            {
+                city[blue_s[i].loc].s_tot--;
+                city[blue_s[i].loc].id_blue = 0;
+                blue_s[i].loc--;
+                if(blue_s[i].loc == 0)
+                {
+                    red.oppo_soldier++;
+                    if(red.oppo_soldier == 2)
+                    {
+                        pd = false;
+                    }
+                }
+            }
+            // 城市产生生命元&&武士取走生命元
+            minu += 10;
+            for(int i = 1; i <= n; i++)
+            {
+                city[i].hp +=10;
+            }
+            minu += 10;
+            for(int i = 1; i <= n; i++)
+            {
+                if(city[i].s_tot == 1)
+                {
+                    if(city[i].id_blue != 0)
+                    {
+                        blue.hp+=city[i].hp;
+                        city[i].hp = 0;
+                    }
+                    else
+                    {
+                        red.hp+=city[i].hp;
+                        city[i].hp = 0;
+                    }
+                }
+            }
+            vector<int> red_win_city,blue_win_city;
+            //战斗&&记录战斗胜利信息
+            for(int i = 1; i <= n; i++)
+            {
+                if(city[i].s_tot == 2)
+                {
+                    if(city[i].flag == 'r' || (city[i].flag == 'n'&&i % 2 == 1))
+                    {
+                        blue_s[city[i].id_blue].hp -= red_s[city[i].id_red].force;
+                        if(blue_s[city[i].id_blue].hp <= 0)
+                        {
+                            red_win_city.push_back(i);
+                            if(city[i].last_win =='r')
+                            {
+                                city[i].flag = 'r';
+                            }
+                            else
+                            {
+                                city[i].last_win = 'r';
+                            }
+                        }
+                        else
+                        {
+                            red_s[city[i].id_red].hp -= blue_s[city[i].id_blue].force/2;
+                            if(red_s[city[i].id_red].hp <= 0)
+                            {
+                                blue_win_city.push_back(i);
+                                if(city[i].last_win == 'b')
+                                {
+                                    city[i].flag = 'b';
+                                }
+                                else
+                                {
+                                    city[i].last_win = 'b';
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if(city[i].flag == 'b' ||(city[i].flag == 'n'&&i % 2 == 0))
+                        {
+                            red_s[city[i].id_red].hp -= blue_s[city[i].id_blue].force;
+                            if(red_s[city[i].id_red].hp <= 0)
+                            {
+                                blue_win_city.push_back(i);
+                                if(city[i].last_win=='b')
+                                {
+                                    city[i].flag = 'b';
+                                }
+                            }
+                        }
+                    }
+                    
+                }
+            }
             
-            //
 
         }
         
